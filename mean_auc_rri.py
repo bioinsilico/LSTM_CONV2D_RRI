@@ -39,7 +39,7 @@ for i in range(1,fN):
     sys.exit(1)
   print("%d %0.4f %0.4f"%(i,(auc/n_auc),(buc/n_auc)))
 
-#X,Y = zip(*A)
-#plt.plot( range(fN-1),X,'ro' )
-#plt.plot( range(fN-1),Y ,'bo')
-#plt.show()
+X,Y = zip(*A)
+plt.plot( range(fN-1),X,'ro' )
+plt.plot( range(fN-1),Y ,'bo')
+plt.show()

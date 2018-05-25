@@ -19,16 +19,19 @@ from benchmark_tools import *
 np.set_printoptions(linewidth=1000000000)
 torch.cuda.manual_seed(1)
 
-verbose = True#False#True
+verbose = False#True
 file_name = sys.argv[1]
 results_path = sys.argv[2]
 
 training = dict()
 testing = dict()
 
-training['features'], training['sequences'] = read_seq_pssm("pssm_dimers_280_list.tsv","dimers_280")
-training['contacts'] = read_contacts("rri_dimers_280_list.tsv","dimers_280_rri",training['features'])
-training['scop'] = read_scop("280_dimers_list.tsv")
+#training['features'], training['sequences'] = read_seq_pssm("pssm_dimers_280_list.tsv","dimers_280")
+#training['contacts'] = read_contacts("rri_dimers_280_list.tsv","dimers_280_rri",training['features'])
+#training['scop'] = read_scop("280_dimers_list.tsv")
+training['features'], training['sequences'] = read_seq_pssm("pssm_dimers_450_list.tsv","dimers_450")
+training['contacts'] = read_contacts("rri_dimers_450_list.tsv","dimers_450_rri",training['features'])
+training['scop'] = read_scop("450_dimers_list.tsv")
 
 testing['features'], testing['sequences'] = read_seq_pssm("pssm_dimers_bipspi_list.tsv","dimers_bipspi")
 testing['contacts'] = read_contacts("rri_dimers_bipspi_list.tsv","dimers_bipspi_rri",testing['features'])
@@ -54,14 +57,21 @@ class BiLSTM(nn.Module):
         out_channels = 32#in_channels 
         self.initial_conv = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
 
-        in_channels_ = out_channels
-        for i in range(self.n_conv2d):
-          in_channels = in_channels_
-          out_channels = in_channels_ + self.conv2d_channels_added
-          in_channels_ = out_channels
-          conv_ = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
-          if(verbose == "full"): print(conv_)#print("CONV #%s - #IN %s - #OUT %s"%(i,in_channels,out_channels))
-          self.conv2d.append( conv_.cuda() )
+        in_channels = out_channels
+        out_channels = in_channels + self.conv2d_channels_added
+        self.conv2d_1 = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
+
+        in_channels = out_channels
+        out_channels = in_channels + self.conv2d_channels_added
+        self.conv2d_2 = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
+
+        in_channels = out_channels
+        out_channels = in_channels + self.conv2d_channels_added
+        self.conv2d_3 = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
+
+        in_channels = out_channels
+        out_channels = in_channels + self.conv2d_channels_added
+        self.conv2d_4 = nn.Conv2d(in_channels, out_channels, kernel_size=self.k_size, stride=1, padding=self.pad_size, dilation=1, groups=1, bias=True)
 
         self.conv2d_dim = out_channels
         self.hidden2out = nn.Linear(out_channels, self.rri_size)
@@ -112,12 +122,15 @@ class BiLSTM(nn.Module):
         pre_conv = pre_conv.permute(2,0,1).unsqueeze(0)
         pre_conv_t = pre_conv_t.permute(2,0,1).unsqueeze(0)
 
-        conv_matrix = F.relu( 0.5*(self.initial_conv(pre_conv)+self.initial_conv(pre_conv_t)) )
+        conv_matrix_0 = F.relu( 0.5*(self.initial_conv(pre_conv)+self.initial_conv(pre_conv_t)) )
 
         if(verbose == "full"):print("\tCONVOLVING")
-        for cnv2d in self.conv2d:
-          conv_matrix = F.relu( cnv2d(conv_matrix) )
+        conv_matrix_1 = F.relu( self.conv2d_1(conv_matrix_0) )
+        conv_matrix_2 = F.relu( self.conv2d_2(conv_matrix_1) )
+        conv_matrix_3 = F.relu( self.conv2d_3(conv_matrix_2) )
+        conv_matrix_4 = F.relu( self.conv2d_4(conv_matrix_3) )
 
+        conv_matrix = conv_matrix_4
         if Flag:
           res_rri = list(contacts['rri_ch_ch'][pdb][ch_r+":"+ch_l].keys())
           P_rri = int(len(res_rri)*0.25)
@@ -212,10 +225,10 @@ for target_ in TRAGETS:
   lr  = 0.01
   model = BiLSTM( input_dim=input_dim, rri_size=2 )
   model.cuda()
+  optimizer = optim.SGD(model.parameters(), lr=lr)
+  #optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
   for epoch in range(100):
 
-    optimizer = optim.SGD(model.parameters(), lr=lr)
-    #lr *= 0.99
 
     N_current = training['contacts']['N_cci']-1
     cci_ = list(training['contacts']['cci'].keys())

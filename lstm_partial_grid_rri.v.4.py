@@ -231,9 +231,9 @@ for target_ in TRAGETS:
   lr  = 0.01
   model = BiLSTM( input_dim=input_dim, lstm_hidden_dim=lstm_hidden_dim, hidden_1_dim=hidden_1_dim, hidden_2_dim=hidden_2_dim, hidden_3_dim=hidden_3_dim, rri_size=2 )
   model.cuda()
-
-  for epoch in range(80):
-    optimizer = optim.SGD(model.parameters(), lr=lr)
+  optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+  for epoch in range(16):
+    #optimizer = optim.SGD(model.parameters(), lr=lr)
     #lr *= 0.99
     N_current = training['contacts']['N_cci']-1
     cci_ = list(training['contacts']['cci'].keys())
